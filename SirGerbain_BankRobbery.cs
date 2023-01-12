@@ -166,7 +166,7 @@ namespace SirGerbain_BankRobbery
                     {
                         robbers[0].Task.CruiseWithVehicle(robbersVehicle, 150f, 524828);
 
-                        hostage.Task.ReactAndFlee();
+                        hostage.Task.ReactAndFlee(robbers[1]);
                         startPursuit = true;
                         break;
                     }
