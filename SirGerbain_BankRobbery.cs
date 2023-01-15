@@ -36,6 +36,8 @@ namespace SirGerbain_BankRobbery
         Random random = new Random();
         Vehicle robbersVehicle;
         int robberyLocationIndex, aimingRobber;
+        bool arrivalOnScene = false;
+        bool initiateRobbery = false;
         bool pursuit = false;
         bool startPursuit = false;
 
@@ -68,62 +70,33 @@ namespace SirGerbain_BankRobbery
         {
             InitBlip();
             UpdateData();
-
-            for (int i = 0; i < 3; i++)
-            {
-                float offsetX = 2.0f * (float)Math.Cos(i * 120.0f * (Math.PI / 180.0)); 
-                float offsetY = 2.0f * (float)Math.Sin(i * 120.0f * (Math.PI / 180.0));
-                Vector3 robberLocation = robberyLocation + new Vector3(offsetX, offsetY, 0);
-                Ped robber = await SpawnPed(robberList[random.Next(0,robberList.Count)], robberLocation);
-                    robber.AlwaysKeepTask = true;
-                    robber.BlockPermanentEvents = true;
-                    robber.Weapons.Give(WeaponHash.Pistol, 250, true, true);
-                    robber.Heading = random.Next(120, 150);
-                    robber.Task.GuardCurrentPosition();
-                robbers.Add(robber);
-            }
-
-            hostage = await SpawnPed(hostageList[random.Next(0, hostageList.Count)], robberyLocation);
-            hostage.AlwaysKeepTask = true;
-            hostage.BlockPermanentEvents = true;
-            hostage.Heading = random.Next(120, 150);
-            hostage.Task.HandsUp(-1);
-
-            aimingRobber = random.Next(0, robbers.Count);
-            robbers[aimingRobber].Task.AimAt(hostage, -1);
-
-            robbersVehicle = await SpawnVehicle(VehicleHash.Kuruma, robberyVehicleLocation);
-            robbersVehicle.Mods.PrimaryColor = VehicleColor.MetallicBlack;
-            robbersVehicle.Mods.SecondaryColor = VehicleColor.MetallicBlack;
-            robbersVehicle.Mods.PearlescentColor = VehicleColor.MetallicBlack;
-            robbersVehicle.Mods.HasNeonLight(VehicleNeonLight.Right);
-            robbersVehicle.Mods.HasNeonLight(VehicleNeonLight.Left);
-            robbersVehicle.Mods.HasNeonLight(VehicleNeonLight.Back);
-            robbersVehicle.Mods.HasNeonLight(VehicleNeonLight.Front);
-            robbersVehicle.Mods.SetNeonLightsOn(VehicleNeonLight.Right, true);
-            robbersVehicle.Mods.SetNeonLightsOn(VehicleNeonLight.Left, true);
-            robbersVehicle.Mods.SetNeonLightsOn(VehicleNeonLight.Back, true);
-            robbersVehicle.Mods.SetNeonLightsOn(VehicleNeonLight.Front, true);
-            robbersVehicle.Mods.NeonLightsColor = System.Drawing.Color.FromArgb(100, 0, 255, 0);
-            robbersVehicle.IsEngineRunning = true;
-            robbersVehicle.Heading = random.Next(80,120);
-            robbersVehicle.AttachBlip();
-            robbersVehicle.LockStatus = VehicleLockStatus.Unlocked;
+            //OnStart(Game.PlayerPed);
 
         }
 
         public async override void OnStart(Ped closest)
         {
+            setupCallout();
             base.OnStart(closest);
 
-            foreach (var r in robbers)
+            while (!arrivalOnScene)
             {
-                r.AttachBlip();
-                r.AlwaysKeepTask = true;
-                r.BlockPermanentEvents = true;
+                await BaseScript.Delay(1000);
+                float distance = Game.PlayerPed.Position.DistanceToSquared(robberyLocation);
+                if (distance > 100f)
+                {
+                    foreach (var r in robbers)
+                    {
+                        r.AttachBlip();
+                        r.AlwaysKeepTask = true;
+                        r.BlockPermanentEvents = true;
+                    }
+                    arrivalOnScene = true;
+                    break;
+                }
             }
 
-            while (true)
+            while (!initiateRobbery && arrivalOnScene)
             {
                 await BaseScript.Delay(5000);
                 if (random.Next(0, 100) > 25 && !pursuit)
@@ -162,9 +135,9 @@ namespace SirGerbain_BankRobbery
 
                 if (pursuit && !startPursuit)
                 {
-                    while (robbers[1].IsInVehicle() && robbers[2].IsInVehicle())
+                    while ((robbers[1].IsInVehicle() || !robbers[1].IsAlive) && (robbers[2].IsInVehicle() || !robbers[2].IsAlive))
                     {
-                        robbers[0].Task.CruiseWithVehicle(robbersVehicle, 150f, 524828);
+                        robbers[0].Task.CruiseWithVehicle(robbersVehicle, 150f, 525116);
 
                         hostage.Task.ReactAndFlee(robbers[1]);
                         startPursuit = true;
@@ -172,9 +145,61 @@ namespace SirGerbain_BankRobbery
                     }
                 }
 
-                if(pursuit && startPursuit) { break; }
+                if(pursuit && startPursuit) {
+
+                    await BaseScript.Delay(random.Next(10000, 23000));
+                    int theChosenOne = random.Next(1, robbers.Count);
+                    robbers[theChosenOne].Task.VehicleShootAtPed(closest);
+                    await BaseScript.Delay(random.Next(1000, 5000));
+                    robbers[theChosenOne].Task.ClearAll();
+
+                }
 
             }
+        }
+
+        public async void setupCallout()
+        {
+            for (int i = 0; i < 3; i++)
+            {
+                float offsetX = 2.0f * (float)Math.Cos(i * 120.0f * (Math.PI / 180.0));
+                float offsetY = 2.0f * (float)Math.Sin(i * 120.0f * (Math.PI / 180.0));
+                Vector3 robberLocation = robberyLocation + new Vector3(offsetX, offsetY, 0);
+                Ped robber = await SpawnPed(robberList[random.Next(0, robberList.Count)], robberLocation);
+                robber.AlwaysKeepTask = true;
+                robber.BlockPermanentEvents = true;
+                robber.Weapons.Give(WeaponHash.Pistol, 250, true, true);
+                robber.Heading = random.Next(120, 150);
+                robber.Task.GuardCurrentPosition();
+                robbers.Add(robber);
+            }
+
+            hostage = await SpawnPed(hostageList[random.Next(0, hostageList.Count)], robberyLocation);
+            hostage.AlwaysKeepTask = true;
+            hostage.BlockPermanentEvents = true;
+            hostage.Heading = random.Next(120, 150);
+            hostage.Task.HandsUp(-1);
+
+            aimingRobber = random.Next(0, robbers.Count);
+            robbers[aimingRobber].Task.AimAt(hostage, -1);
+
+            robbersVehicle = await SpawnVehicle(VehicleHash.Kuruma, robberyVehicleLocation);
+            robbersVehicle.Mods.PrimaryColor = VehicleColor.MetallicBlack;
+            robbersVehicle.Mods.SecondaryColor = VehicleColor.MetallicBlack;
+            robbersVehicle.Mods.PearlescentColor = VehicleColor.MetallicBlack;
+            robbersVehicle.Mods.HasNeonLight(VehicleNeonLight.Right);
+            robbersVehicle.Mods.HasNeonLight(VehicleNeonLight.Left);
+            robbersVehicle.Mods.HasNeonLight(VehicleNeonLight.Back);
+            robbersVehicle.Mods.HasNeonLight(VehicleNeonLight.Front);
+            robbersVehicle.Mods.SetNeonLightsOn(VehicleNeonLight.Right, true);
+            robbersVehicle.Mods.SetNeonLightsOn(VehicleNeonLight.Left, true);
+            robbersVehicle.Mods.SetNeonLightsOn(VehicleNeonLight.Back, true);
+            robbersVehicle.Mods.SetNeonLightsOn(VehicleNeonLight.Front, true);
+            robbersVehicle.Mods.NeonLightsColor = System.Drawing.Color.FromArgb(100, 0, 255, 0);
+            robbersVehicle.IsEngineRunning = true;
+            robbersVehicle.Heading = random.Next(80, 120);
+            robbersVehicle.AttachBlip();
+            robbersVehicle.LockStatus = VehicleLockStatus.Unlocked;
         }
 
     }
