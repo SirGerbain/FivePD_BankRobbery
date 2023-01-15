@@ -70,7 +70,6 @@ namespace SirGerbain_BankRobbery
         {
             InitBlip();
             UpdateData();
-            //OnStart(Game.PlayerPed);
 
         }
 
@@ -91,6 +90,7 @@ namespace SirGerbain_BankRobbery
                         r.AlwaysKeepTask = true;
                         r.BlockPermanentEvents = true;
                     }
+                    DrawSubtitle("They are leaving, protect the hostage until they leave.", 7000);
                     arrivalOnScene = true;
                     break;
                 }
@@ -128,7 +128,7 @@ namespace SirGerbain_BankRobbery
                             robbers[i].Task.PerformSequence(sequence);
                         }
                     }
-
+                    
                     pursuit = true;
 
                 }
@@ -140,6 +140,8 @@ namespace SirGerbain_BankRobbery
                         robbers[0].Task.CruiseWithVehicle(robbersVehicle, 150f, 525116);
 
                         hostage.Task.ReactAndFlee(robbers[1]);
+                        robbersVehicle.AttachBlip().ShowRoute = true;
+                        Notify("All units, suspects have left the bank. 10-80 in progress");
                         startPursuit = true;
                         break;
                     }
@@ -200,6 +202,17 @@ namespace SirGerbain_BankRobbery
             robbersVehicle.Heading = random.Next(80, 120);
             robbersVehicle.AttachBlip();
             robbersVehicle.LockStatus = VehicleLockStatus.Unlocked;
+            
+        }
+        private void Notify(string message)
+        {
+            ShowNetworkedNotification(message, "CHAR_CALL911", "CHAR_CALL911", "Dispatch", "Prisoner Transport", 15f);
+        }
+        private void DrawSubtitle(string message, int duration)
+        {
+            API.BeginTextCommandPrint("STRING");
+            API.AddTextComponentSubstringPlayerName(message);
+            API.EndTextCommandPrint(duration, false);
         }
 
     }
